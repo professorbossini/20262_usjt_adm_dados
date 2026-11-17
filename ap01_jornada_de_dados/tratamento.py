@@ -1,4 +1,7 @@
+import matplotlib
+matplotlib.use('Agg')
 import pandas as pd
+import matplotlib.pyplot as plt
 import config
 
 NOMES = {
@@ -102,5 +105,22 @@ def tratar():
   for coluna, n in recuperados[recuperados > 0].items():
     print(f'{coluna}: {config.br(n)}')
 
+def separar_quarentena(df):
+  # venda sem total ou sem data não segue a jornada
+  retida = df['total'].isna() | df['data'].isna()
+  quarentena = df[retida].copy()
+  quarentena['motivo'] = "sem data"
+  quarentena.loc[quarentena['total'].isna(), "motivo"] = "sem valor total"
+  return df[~retida].copy(), quarentena
+
+def completar(silver):
+  # Ausência explícita é melhor que ausência silenciosa
+  silver["item"] = silver["item"].fillna("Não identificado")
+  silver["forma_pagamento"] = silver['forma_pagamento'].fillna(
+    'Não informado'
+  )
+  silver["local"] = silver["local"].fillna("Não informado")
+  silver["quantidade"] = silver["quantidade"].round().astype("Int64")
+  return silver
 if __name__ == "__main__":
   tratar()
