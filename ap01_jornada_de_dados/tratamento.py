@@ -64,17 +64,43 @@ def padronizar(bronze):
       errors="coerce"
   )
   df["item"] = df["item"].map(ITENS)
-  df["forma_pagamento"] = df["forma_pagamento"].map(PAGAMENTOS)]
+  df["forma_pagamento"] = df["forma_pagamento"].map(PAGAMENTOS)
   df["local"] = df["local"].map(LOCAIS)
   return df
 
-
+def recuperar(df):
+  lacunas = df[CAMPOS].isna()
+  for rodada in range(3):
+    df["preco_unitario"] = df["preco_unitario"].fillna(
+      df["item"].map(CARDAPIO)
+    )
+    df["preco_unitario"] = df["preco_unitario"].fillna(
+      df["total"] / df["quantidade"] 
+    )
+    df["quantidade"] = df["quantidade"].fillna(
+      df["total"] / df["preco_unitario"]
+    )
+    df["total"] = df["total"].fillna(
+      df["quantidade"] * df["preco_unitario"]
+    )
+    df["item"] = df["item"].fillna(
+      df["preco_unitario"].map(PRECO_EXCLUSIVO)
+    )
+  df["_recuperado"] = (lacunas & df[CAMPOS].notna()).any(axis=1)
+  return lacunas.sum() - df[CAMPOS].isna().sum()
 
 def tratar():
   bronze = pd.read_parquet(config.BRONZE / "vendas.parquet")
   antes, perfeitas_antes= diagnosticar(bronze.rename(columns=NOMES))
   print("Diagnóstico da camada bronze (valores utilizáveis):")
   mostrar_diagnostico(antes, perfeitas_antes)
+  df = padronizar(bronze)
+  lacunas = df[CAMPOS].isna().sum().sum()
+  print(f'Lacunas após padronizar: {config.br(lacunas)}')
+  recuperados = recuperar(df)
+  print('Valores recuperados pelas regras de negócio')
+  for coluna, n in recuperados[recuperados > 0].items():
+    print(f'{coluna}: {config.br(n)}')
 
 if __name__ == "__main__":
   tratar()
